@@ -1,0 +1,17 @@
+Machine Learning Engineer Intern, Recommendations — Streamly (music streaming)
+
+Streamly's recsys team serves 200M daily recommendations. Interns ship models that
+run in production by the end of the summer.
+
+What you will do
+- Train two-tower retrieval and ranking models in PyTorch or TensorFlow.
+- Build training data pipelines with Apache Spark (Scala or PySpark).
+- Evaluate models offline and through online experiments.
+- Optimize low-latency serving components written in C++ and Java.
+
+Requirements
+- Strong programming in Python plus one of Java, Scala or C++.
+- Coursework in machine learning and deep learning.
+- Experience with recommender systems, embeddings, or vector databases.
+- Familiarity with Docker and Kubernetes; Airflow is a plus.
+- Git and Linux command line.

@@ -1,0 +1,20 @@
+LLM Applications Intern — Fieldnote AI (seed-stage startup, 12 people)
+
+Fieldnote turns sales call recordings into CRM updates. We are a small team that
+ships every day, and interns own real features end to end.
+
+What you will build
+- Retrieval-augmented generation (RAG) pipelines over customer call transcripts.
+- Agentic workflows that draft follow-up emails and update CRM fields.
+- Evals: build eval sets and automated LLM evaluation to catch regressions.
+- Embedding search with a vector database (we use Pinecone today, testing FAISS).
+
+Our stack
+- Python (FastAPI), LangChain, OpenAI and Anthropic APIs.
+- Docker for local dev, deployed on GCP.
+- GitHub for code review.
+
+You might be a fit if
+- You have built something with large language models and can talk about what broke.
+- You care about prompt engineering as an engineering discipline, not magic words.
+- You can write clean Python and basic SQL.

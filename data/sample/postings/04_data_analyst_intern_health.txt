@@ -1,0 +1,17 @@
+Data Analyst Intern — Northwind Health Network
+
+Northwind runs 14 outpatient clinics. The analytics team helps operations leaders
+understand patient volume, wait times and staffing.
+
+Responsibilities
+- Pull and clean data with SQL from our clinical data warehouse.
+- Build and maintain dashboards in Tableau and Power BI for clinic managers.
+- Perform statistical analysis on appointment no-show rates.
+- Build simple forecasting models for weekly patient volume.
+- Document metrics definitions and data quality checks.
+
+Qualifications
+- Proficiency in Microsoft Excel (pivot tables, lookups) and SQL.
+- Experience with R programming or Python for analysis.
+- Strong data visualization and communication skills.
+- Interest in healthcare operations.

@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# Tooling
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.mypy_cache/
+
+# Generated outputs (keep the folder)
+output/*
+!output/.gitkeep
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

@@ -1,0 +1,45 @@
+skill,category,aliases
+Python,programming,python3
+R,programming,R programming|RStudio|R language
+SQL,programming,
+Java,programming,
+JavaScript,programming,
+C++,programming,cpp
+Scala,programming,
+pandas,data & ml,
+NumPy,data & ml,
+scikit-learn,data & ml,sklearn|scikit learn
+PyTorch,data & ml,torch
+TensorFlow,data & ml,Keras
+machine learning,data & ml,ML
+deep learning,data & ml,
+statistics,data & ml,statistical analysis|statistical modeling|statistical modelling
+A/B testing,data & ml,A/B test|A/B tests|AB testing|online experiments|experimentation
+causal inference,data & ml,
+recommender systems,data & ml,recommendation systems|recommendation system|recsys
+time series,data & ml,time-series|forecasting
+LLM,ai & llm,LLMs|large language model|large language models
+prompt engineering,ai & llm,prompting
+RAG,ai & llm,retrieval-augmented generation|retrieval augmented generation
+LangChain,ai & llm,LlamaIndex
+AI agents,ai & llm,AI agent|agentic|agent workflows
+vector databases,ai & llm,vector database|vector DB|Pinecone|FAISS
+model evaluation,ai & llm,evals|LLM evaluation|eval sets
+Tableau,analytics & bi,
+Power BI,analytics & bi,PowerBI
+Excel,analytics & bi,Microsoft Excel|spreadsheets
+dbt,analytics & bi,
+data visualization,analytics & bi,data viz|visualization
+Git,engineering,GitHub
+Docker,engineering,containers
+Spark,engineering,Apache Spark
+PySpark,engineering,
+Airflow,engineering,Apache Airflow
+AWS,engineering,Amazon Web Services|SageMaker
+GCP,engineering,Google Cloud|BigQuery
+React,engineering,React.js|ReactJS
+PRD writing,product,PRD|PRDs|product requirements|requirements documents
+user research,product,user interviews|customer interviews|user discovery|usability testing
+Figma,product,
+product metrics,product,KPIs|north star metric|funnel metrics|funnel analysis
+Jira,product,

@@ -1,0 +1,31 @@
+# My current skills — one per line.
+# Aliases work here too ("sklearn" counts as scikit-learn).
+# Lines starting with # and blank lines are ignored.
+
+# Programming
+Python
+SQL
+
+# Data & ML
+pandas
+NumPy
+sklearn
+statistics
+A/B testing
+machine learning
+
+# AI products (ByteDance model evaluation, DeepZone 0-to-1 app)
+LLM
+prompt engineering
+AI agents
+model evaluation
+
+# Analytics & product
+Excel
+Tableau
+PRD writing
+user research
+Git
+
+# Not in the dictionary (will show up as a warning)
+Wind API

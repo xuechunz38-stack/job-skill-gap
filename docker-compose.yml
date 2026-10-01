@@ -1,0 +1,11 @@
+services:
+  job-skill-gap:
+    build: .
+    image: job-skill-gap:latest
+    volumes:
+      # Inputs are read-only; point this at your own folder to analyze real postings.
+      - ./data/sample:/data/input:ro
+      - ./output:/data/output
+    # On Linux hosts, uncomment to avoid root-owned files in ./output
+    # (run with: UID=$(id -u) GID=$(id -g) docker compose run --rm job-skill-gap)
+    # user: "${UID}:${GID}"

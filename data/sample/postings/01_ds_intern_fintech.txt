@@ -1,0 +1,20 @@
+Data Science Intern (Summer 2027) — Ledgerline, a consumer fintech company
+
+About the team
+The Risk Analytics team builds the models that decide credit limits for two million
+cardholders. You will work with senior data scientists on fraud and credit-risk projects.
+
+What you will do
+- Build and validate credit-risk models in Python using pandas and scikit-learn.
+- Write SQL against our Snowflake warehouse to assemble training data.
+- Run statistical analysis on model performance across customer segments.
+- Help design A/B tests for new underwriting rules and read out the results.
+- Present findings to the risk committee with clear data visualization.
+
+What we are looking for
+- Strong Python. Our whole stack is Python, our notebooks are Python, and our
+  model-serving code is Python, so you will write Python every day.
+- Coursework in statistics and machine learning.
+- Comfort with SQL joins and window functions.
+- Bonus: experience with time series forecasting or causal inference.
+- Bonus: Git and code review habits.

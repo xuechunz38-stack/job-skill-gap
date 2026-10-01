@@ -1,0 +1,17 @@
+Machine Learning Intern — Cartwheel Marketplace (e-commerce)
+
+Cartwheel connects 40,000 independent sellers with shoppers. Our ML team owns search
+ranking, pricing suggestions and seller fraud detection.
+
+Responsibilities
+* Prototype ranking and classification models with sklearn and PyTorch.
+* Build feature pipelines in PySpark on our data lake.
+* Schedule training jobs with Airflow, package models with Docker, and track experiments.
+* Analyze offline metrics and help run online experiments on new rankers.
+
+Requirements
+* Currently pursuing a BS/MS in CS, statistics, or a related field.
+* Solid Python and SQL.
+* Understanding of ML fundamentals: bias/variance, regularization, cross-validation.
+* Familiarity with deep learning is a plus.
+* Experience with AWS (SageMaker or EC2) is a plus.

@@ -1,0 +1,17 @@
+Product Analytics Intern — Ripple (short-video social app)
+
+Ripple's product analytics team partners with product managers to decide what to
+build next. You will join the Feed & Discovery pod.
+
+Responsibilities
+- Define and monitor product metrics such as retention, session depth and the
+  north star metric for creators.
+- Design and analyze A/B tests on feed changes; check for novelty effects.
+- Use causal inference methods when experiments are not possible.
+- Write SQL in BigQuery and build models in dbt.
+- Build dashboards and data visualization that PMs and engineers actually use.
+
+Requirements
+- Strong SQL. Python or R for analysis (pandas, statsmodels, or tidyverse).
+- Solid statistics: hypothesis testing, confidence intervals, power analysis.
+- Familiarity with recommendation systems is a plus.

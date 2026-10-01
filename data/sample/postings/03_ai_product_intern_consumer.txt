@@ -1,0 +1,17 @@
+AI Product Intern — Pebble (consumer mobile app)
+
+Pebble is a journaling app with 3M monthly users. We are adding an AI companion that
+summarizes your week and suggests reflections.
+
+You will
+- Talk to users: run user interviews and usability testing on early AI features.
+- Write PRDs for new AI features and keep them updated as we learn.
+- Work with designers in Figma and with engineers who build the app in React Native
+  and our web dashboard in React.
+- Write and iterate on prompts with the team; help define prompt engineering guidelines.
+- Track launch KPIs and dig into funnel analysis after each release.
+
+Nice to have
+- You have shipped something with an LLM API, even a side project.
+- Basic SQL to answer your own product questions.
+- Comfort working in Jira and writing clear tickets.

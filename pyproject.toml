@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "job-skill-gap"
+version = "0.1.0"
+description = "Compare job postings against your resume and rank the skills you are missing."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Xuechun Zhao", email = "xz371@duke.edu" }]
+license = { text = "MIT" }
+dependencies = ["matplotlib>=3.7"]
+
+[project.scripts]
+job-skill-gap = "job_skill_gap.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.coverage.run]
+source = ["job_skill_gap"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false

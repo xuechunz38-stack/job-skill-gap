@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quality:
+    name: Format, lint, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements-dev.txt
+
+      - name: Install
+        run: make install
+
+      - name: Format check (black)
+        run: make format-check
+
+      - name: Lint (flake8)
+        run: make lint
+
+      - name: Test (pytest)
+        run: make test
+
+  docker:
+    name: Docker smoke run
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker compose build
+
+      - name: Run on sample data
+        run: docker compose run --rm job-skill-gap
+
+      - name: Check outputs exist
+        run: |
+          test -s output/skill_gap.csv
+          test -s output/top_missing_skills.png
+          head -5 output/skill_gap.csv
+
+      - name: Wrong mount fails with exit code 2
+        run: |
+          mkdir -p /tmp/empty-postings /tmp/empty-out
+          set +e
+          docker compose run --rm \
+            -v /tmp/empty-postings:/data/input/postings:ro \
+            -v /tmp/empty-out:/data/output \
+            job-skill-gap 2> stderr.txt
+          code=$?
+          set -e
+          cat stderr.txt
+          test "$code" -eq 2
+          grep -q "No .txt postings found in /data/input/postings" stderr.txt
+          test -z "$(ls -A /tmp/empty-out)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sample-output
+          path: output/
