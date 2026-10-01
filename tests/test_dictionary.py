@@ -116,3 +116,38 @@ def test_sample_dictionary_is_valid(sample_dir):
     skills = load_skills(sample_dir / "skills.csv")
     assert len(skills) >= 30
     assert "Go" not in {s.name for s in skills}  # risk R1: kept out on purpose
+
+
+def test_unterminated_quote_is_an_error(write_file):
+    # Without strict parsing this silently became a skill named "Python,p,".
+    path = write_file("s.csv", 'skill,category,aliases\n"Python,p,\nSQL,d,\n')
+    with pytest.raises(SkillDictionaryError, match="malformed CSV"):
+        load_skills(path)
+
+
+def test_stray_quote_after_quoted_field_is_an_error(write_file):
+    path = write_file("s.csv", 'skill,category,aliases\n"Py"thon,p,\n')
+    with pytest.raises(SkillDictionaryError, match="malformed CSV after line 1"):
+        load_skills(path)
+
+
+def test_oversized_field_is_an_error_not_a_crash(write_file):
+    path = write_file("s.csv", "skill,category,aliases\nPython,p," + "a" * 200_000)
+    with pytest.raises(SkillDictionaryError, match="malformed CSV"):
+        load_skills(path)
+
+
+@pytest.mark.parametrize(
+    "row",
+    ['"Python, SQL",p,', '"Python\nSQL",p,', '"Python\r\nSQL",p,'],
+)
+def test_skill_name_with_comma_or_line_break_is_rejected(write_file, row):
+    path = write_file("s.csv", f"skill,category,aliases\n{row}\n")
+    with pytest.raises(SkillDictionaryError, match="comma or line break"):
+        load_skills(path)
+
+
+def test_quoted_alias_with_comma_is_still_allowed(write_file):
+    path = write_file("s.csv", 'skill,category,aliases\nPython,p,"py, thon|py3"\n')
+    (skill,) = load_skills(path)
+    assert skill.aliases == ("Python", "py, thon", "py3")

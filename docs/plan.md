@@ -1,7 +1,18 @@
 # job-skill-gap — Architecture Plan
 
 IDS 706 · Week 4 · Option 3 (new project)
-Status: **plan only — no implementation yet** · Rev 2 (empty postings input is now a hard error)
+Status: **implemented** · Rev 3 — updated to match the code after review
+
+**Revision history**
+- Rev 1 — initial plan.
+- Rev 2 — empty postings input is a hard error (exit 2).
+- Rev 3 — brought in line with the implementation after the tester's review:
+  `make test` runs plain pytest and coverage has its own `make coverage` target, kept out
+  of CI on purpose (D12, D13, §6.7, §7.1); the skills CSV is parsed strictly and
+  malformed rows or comma/line-break skill names are errors (F2, D6); boundary guards
+  apply only to an alias's word-character edges so `C++17` / `C#10` match (D1); over-broad
+  sample aliases removed (R1); `analyze()` takes resume terms and `AnalysisResult` lives in
+  `models.py` (§3.1); test plan extended (§6).
 
 ---
 
@@ -25,7 +36,7 @@ resume.txt      ─┘                 ─► top_missing.png      (top 10 missi
 | ID | Requirement |
 |----|-------------|
 | F1 | Read every `*.txt` file in a postings folder (non-recursive). Other file types are ignored. If the folder contains **no `.txt` files** (empty, or only other file types), the CLI fails with a non-zero exit code and the error `No .txt postings found in <path>`, and writes no output files. |
-| F2 | Read a skills dictionary CSV with header `skill,category,aliases`; `aliases` is a `|`-separated list (may be empty). The canonical `skill` name always counts as its own alias. |
+| F2 | Read a skills dictionary CSV with header `skill,category,aliases`; `aliases` is a `|`-separated list (may be empty). The canonical `skill` name always counts as its own alias. The CSV is parsed strictly: malformed CSV (unterminated quote, oversized field, stray quote) and skill names containing a comma or line break are errors (exit 1), never a traceback or a silently wrong skill. |
 | F3 | Read a resume skills file: one skill per line; blank lines and lines starting with `#` are ignored. Resume entries are resolved through the **same alias table** (so `sklearn` on the resume = `scikit-learn`). |
 | F4 | Matching is case-insensitive and respects word boundaries (`R` must not match `React`, `Java` must not match `JavaScript`, `SQL` must not match `NoSQL`). |
 | F5 | A skill is counted **at most once per posting**, no matter how many times or via how many aliases it appears. |
@@ -110,11 +121,11 @@ job-skill-gap/
 
 | Module | Responsibility | Pure? |
 |--------|----------------|-------|
-| `models.py` | Frozen dataclasses. `Skill(name, category, aliases: tuple[str, ...])`, `Posting(name, text)`, `SkillStat(skill, category, posting_count, posting_pct, have_skill, gap_score, rank)`. | yes |
-| `dictionary.py` | `load_skills(path) -> list[Skill]`. Validates header, strips whitespace, drops empty aliases, adds canonical name as alias, de-dupes aliases, **raises `SkillDictionaryError`** if the same alias maps to two different skills or a skill name repeats. | IO at edge |
-| `matcher.py` | `SkillMatcher(skills)` compiles one regex per skill (alternation of escaped aliases, longest first). `find(text) -> set[str]` returns canonical names. `resolve(term) -> str \| None` maps a single resume term to a canonical skill. | yes |
+| `models.py` | Frozen dataclasses. `Skill(name, category, aliases: tuple[str, ...])`, `Posting(name, text)`, `SkillStat(skill, category, posting_count, posting_pct, have_skill, gap_score, rank)`, `AnalysisResult` (stats plus per-posting matches, postings without matches, owned skills, unknown resume terms; `matched_stats` / `missing` / `owned_in_demand` views). | yes |
+| `dictionary.py` | `load_skills(path) -> list[Skill]`. Parses with `csv.DictReader(strict=True)`, validates header, strips whitespace, drops empty aliases, adds canonical name as alias, de-dupes aliases, **raises `SkillDictionaryError`** for malformed CSV (`csv.Error` is caught and re-raised), an empty skill name, a skill name containing a comma or line break, too many columns, a repeated skill name, or the same alias mapping to two different skills. | IO at edge |
+| `matcher.py` | `SkillMatcher(skills)` compiles one regex per skill (alternation of escaped, individually guarded aliases, longest first; a skill with no aliases never matches). `find(text) -> set[str]` returns canonical names. `resolve(term) -> str \| None` maps a single resume term to a canonical skill. | yes |
 | `loader.py` | `load_postings(folder) -> list[Posting]` (sorted by filename, UTF-8 with BOM handling, `errors="replace"`); `load_resume(path) -> list[str]`. Raises `FileNotFoundError` / `NotADirectoryError` with clear messages, and `NoPostingsError("No .txt postings found in <path>")` when the folder has zero `.txt` files. | IO |
-| `analysis.py` | `analyze(postings, skills, owned: set[str], matcher) -> AnalysisResult` with list[SkillStat], per-posting matches, postings with zero matches, unknown resume terms. No file IO, no printing. | yes |
+| `analysis.py` | `analyze(postings, skills, resume_terms, matcher) -> AnalysisResult`: resolves resume terms through the matcher (`resolve_resume`), then counts, scores and ranks. Also `gap_score()` and `collect_warnings(result)`. No file IO, no printing. | yes |
 | `report.py` | `write_csv(stats, path)`, `plot_top_missing(stats, path, n=10)`, `format_summary(result, paths) -> str`. Uses matplotlib `Agg` backend. | IO |
 | `cli.py` | Parse args, wire modules together, print summary, map exceptions → exit codes. Thin; no business logic. | IO |
 
@@ -137,7 +148,7 @@ Exit codes:
 | Code | Meaning | Examples |
 |------|---------|----------|
 | `0` | Success | Normal run; also postings found but **no missing skills** (warning printed, outputs written). |
-| `1` | Invalid input data | Bad skills CSV header, alias collision between skills. |
+| `1` | Invalid input data | Malformed skills CSV, bad header, comma/line break in a skill name, duplicate skill, alias collision between skills. |
 | `2` | Bad input path or arguments | Postings path missing / not a directory; **no `.txt` postings found in the folder**; argparse usage errors. |
 
 All errors go to stderr as one readable line (`error: No .txt postings found in data/postings`), never a traceback. Inputs are fully loaded and validated **before** the output directory is created, so a failed run leaves no partial or empty outputs behind.
@@ -147,12 +158,12 @@ All errors go to stderr as one readable line (`error: No .txt postings found in 
 ## 4. Key design decisions
 
 ### D1 — Word-boundary matching with custom lookarounds, not `\b`
-`\b` breaks on skills that end in non-word characters (`C++`, `C#`, `.NET`, `Node.js`). Each alias is compiled as:
+`\b` breaks on skills that start or end in non-word characters (`C++`, `C#`, `.NET`). Each alias is compiled as:
 
 ```
-(?<![A-Za-z0-9_])  <re.escape(alias) with spaces → \s+>  (?![A-Za-z0-9_])
+[(?<![A-Za-z0-9_])]  <re.escape(alias) with spaces → \s+>  [(?![A-Za-z0-9_])]
 ```
-with `re.IGNORECASE`. This gives: `R` ✗ `React`, `Java` ✗ `JavaScript`, `SQL` ✗ `NoSQL`/`MySQL`, `Spark` ✗ `PySpark`, while `C++` and `scikit-learn` still match. Multi-word aliases (`machine learning`) tolerate line breaks/multiple spaces between words.
+with `re.IGNORECASE`, where each bracketed guard is added **only if the alias's first / last character is a word character** (ASCII letter, digit or `_`). A word-character edge is where gluing creates a different word, so it is guarded: `R` ✗ `React`, `Java` ✗ `JavaScript`, `SQL` ✗ `NoSQL`/`MySQL`, `Spark` ✗ `PySpark`, `C` ✗ `C99`. A symbol edge is already a boundary, so it is not: `C++17` → `C++`, `C#10` → `C#` (Rev 2 guarded both sides, which missed version suffixes). Trade-off: with a `.NET` skill, `ASP.NET` counts as `.NET`. Each alias carries its own guards inside the alternation. Multi-word aliases (`machine learning`) tolerate line breaks/multiple spaces between words.
 
 ### D2 — Count presence per posting, not occurrences
 `find()` returns a `set` of canonical names, so "Python, Python, python" or "sklearn … scikit-learn" in one posting = 1. This is the "document frequency" — what we actually want to know is *how many employers* ask for a skill.
@@ -170,8 +181,10 @@ CSV sorted by `posting_count` desc → `have_skill` (missing first) → `skill` 
 ### D5 — One alias table for postings *and* resume
 The resume goes through `matcher.resolve()`. Unrecognized resume terms are **not** an error: they're collected and listed as a warning in the summary ("not in dictionary: Tableau Prep"), because the user's resume may contain skills the dictionary doesn't track.
 
-### D6 — Fail fast on dictionary ambiguity
+### D6 — Fail fast on dictionary ambiguity and malformed CSV
 Two skills sharing an alias makes results order-dependent and silently wrong, so `load_skills` raises with both skill names in the message. Duplicate aliases *within* one skill are silently de-duplicated.
+
+The same reasoning applies to malformed CSV. With default (non-strict) parsing, an unterminated quote silently swallows the rest of the file into one skill named e.g. `Python,p,`, and an oversized field raises a raw `csv.Error` traceback. So the CSV is read with `strict=True`, every `csv.Error` becomes `SkillDictionaryError` (`<path>: malformed CSV after line N (<reason>)`, exit 1), and a skill name containing a comma or line break, which is almost always a misplaced quote, is rejected. Quoted aliases may still contain commas.
 
 ### D7 — Empty postings input is an error; "no gaps" is not
 - **No `.txt` postings in the folder** (empty folder, or only `.md`/`.DS_Store`/etc.) almost always means the wrong path was passed. Writing a zero-filled CSV and exiting 0 would hide that mistake — especially in Docker, where a wrong volume mount silently yields an empty `/data/input/postings`. So `load_postings` raises `NoPostingsError`, the CLI prints `error: No .txt postings found in <path>` and exits **2**, and no output files are written.
@@ -196,13 +209,15 @@ The src layout guarantees tests run against the installed package, not stray fil
 
 ### D12 — CI
 `.github/workflows/ci.yml`, triggered on push and pull_request:
-1. **quality** job: checkout → setup-python 3.11 (pip cache) → `make install` → `make format-check` → `make lint` → `make test` (pytest + coverage report).
-2. **docker** job (needs quality): `docker compose run --rm job-skill-gap` → assert both output files exist.
+1. **quality** job: checkout → setup-python 3.11 (pip cache) → `make install` → `make format-check` → `make lint` → `make test` (plain pytest, **no coverage**).
+2. **docker** job (needs quality): `docker compose build` → `docker compose run --rm job-skill-gap` → assert both output files exist → wrong-mount check (empty postings mount exits 2 with the expected message and writes nothing).
+
+Coverage is deliberately **not** run in CI, not even as an optional step: the `--cov` path was never verified in CI, and an optional step would add noise without changing what CI checks. Coverage is measured locally with `make coverage` (§6.7).
 
 README badge: `![CI](https://github.com/xuechunz38-stack/job-skill-gap/actions/workflows/ci.yml/badge.svg)` (adjust if the repo name differs).
 
 ### D13 — Makefile targets
-`install` (pip install -e . + dev reqs) · `format` (black) · `format-check` (black --check) · `lint` (flake8) · `test` (pytest -v --cov) · `run` (CLI on sample data) · `docker-build` · `docker-run` (compose) · `clean` · `all` = format-check lint test.
+`install` (pip install -e . + dev reqs) · `format` (black) · `format-check` (black --check --diff) · `lint` (flake8) · `test` (plain `pytest -v`, no plugins needed) · `coverage` (`pytest -v --cov=job_skill_gap --cov-report=term-missing`; needs pytest-cov from requirements-dev.txt; not part of `all` or CI) · `run` (CLI on sample data) · `docker-build` · `docker-run` (compose) · `clean` · `all` = format-check lint test.
 
 ---
 
@@ -210,10 +225,10 @@ README badge: `![CI](https://github.com/xuechunz38-stack/job-skill-gap/actions/w
 
 | # | Risk | Impact | Mitigation |
 |---|------|--------|------------|
-| R1 | **Short / common-word skills** — case-insensitive `R` matches "R&D"; `Go` matches the verb "go"; `Excel` matches "excel at". | False positives inflate counts. | Keep `Go` out of the sample dictionary; for `R`, rely on boundaries and add aliases like `R programming`, `RStudio`. Document as a known limitation. Possible v2: optional `case_sensitive` column in the CSV. |
+| R1 | **Short / common-word skills and broad aliases** — case-insensitive `R` matches "R&D" and "R-squared"; `Go` matches the verb "go"; `Excel` matches "excel at"; `statistics` matches a degree field; broad aliases ("containers", "forecasting", "BigQuery"…) count postings that don't ask for the skill. | False positives inflate counts. | Keep `Go` out of the sample dictionary; for `R`, rely on boundaries and add aliases like `R programming`, `RStudio`. Rev 3: removed the over-broad sample aliases (containers, experimentation, forecasting, spreadsheets, GitHub, BigQuery, LlamaIndex). Remaining false positives documented in README Known limitations. Possible v2: optional `case_sensitive` column in the CSV. |
 | R2 | **Overlapping skills** — `machine learning` vs `deep learning`; `SQL` vs `PostgreSQL`. | Both counted (correct), but a posting saying "PostgreSQL" won't count generic `SQL` unless listed as alias. | Explicit design choice: dictionary owns semantics. Document; the user adds `postgresql` as alias of `SQL` if desired. |
 | R3 | **Alias collisions** between skills. | Wrong attribution. | D6 — validation error at load time + test. |
-| R4 | **Regex special characters** in aliases (`C++`, `C#`, `.NET`). | Crashes or wrong matches. | `re.escape` + custom lookarounds (D1) + dedicated tests. |
+| R4 | **Regex special characters** in aliases (`C++`, `C#`, `.NET`), including version suffixes (`C++17`, `C#10`). | Crashes, missed or wrong matches. | `re.escape` + edge-dependent lookarounds (D1) + dedicated tests. |
 | R5 | **Hyphen / spacing variants** (`scikit learn`, `scikit-learn`, `large language models` across a line break). | Missed matches. | Whitespace → `\s+` in patterns; hyphen variants are listed as aliases rather than auto-normalized (keeps behavior predictable). |
 | R6 | **File encoding** (BOM, Windows-1252 smart quotes). | `UnicodeDecodeError`. | Read as `utf-8-sig` with `errors="replace"`. Test with a BOM file. |
 | R7 | **Wrong or empty postings path** (typo, wrong Docker volume mount). | Silently empty results that look like "no skills in demand". | D7 — hard error with exit 2 and the offending path in the message; outputs not written. Defensive pct = 0.0 guard kept in `analysis`. |
@@ -247,6 +262,11 @@ All tests use pytest; fixtures in `conftest.py` provide a small in-memory dictio
 | Empty string | "" | `set()` |
 | Punctuation adjacency | "(Python), SQL." | both matched |
 | `resolve()` | "sklearn" / "SKLEARN" / "Tableau Prep" | `scikit-learn` / `scikit-learn` / `None` |
+| Version suffix | "C++17", "C++20 or newer", "C#10" | `C++` / `C#` matched |
+| Word edge still guarded | "Embedded C99" (skill `C`), "ObjC++" | no match |
+| Symbol edge trade-off | "ASP.NET" (skill `.NET`) | `.NET` matched (documented) |
+| Guard construction | `R`, `C++`, `.NET`, `C#` | guards only on word-character edges |
+| No aliases | skill with empty alias tuple | never matches |
 
 ### 6.2 `test_dictionary.py`
 - Loads valid CSV; canonical name included in aliases; whitespace stripped; empty `aliases` field OK.
@@ -254,6 +274,8 @@ All tests use pytest; fixtures in `conftest.py` provide a small in-memory dictio
 - Duplicate skill name → error.
 - Missing/wrong header → error.
 - Empty file (header only) → empty list (CLI then warns).
+- Malformed CSV → `SkillDictionaryError` ("malformed CSV"), not `csv.Error`: unterminated quote, stray quote after a quoted field, field over the csv size limit.
+- Skill name containing a comma, `\n` or `\r\n` → error; a quoted *alias* containing a comma is still allowed.
 
 ### 6.3 `test_loader.py`
 - Reads only `.txt`, ignores `.md` / `.DS_Store`, sorted by filename.
@@ -287,11 +309,14 @@ All tests use pytest; fixtures in `conftest.py` provide a small in-memory dictio
 - **No missing skills** (resume covers every skill that appears in the postings) → exit 0; warning `No missing skills found` in output; CSV written with all `gap_score = 0`; placeholder PNG written.
 - Missing postings folder → exit 2, error on stderr.
 - Bad skills CSV (alias collision) → exit 1.
+- Malformed skills CSV (unterminated quote, oversized field, comma in skill name) → exit 1, one-line `error:` on stderr, no traceback, no outputs.
+- `--postings` pointing at a file → exit 2 (`Postings path is not a directory`), no outputs.
+- Installed `job-skill-gap` console script (subprocess): sample run exits 0; empty postings folder exits 2 with the exact error line. Skipped if the command is not on PATH.
 - `--top 3` → chart produced (smoke).
-- Sanity on sample data: `scikit-learn` count includes the posting that only says "sklearn"; `R` count excludes the posting that only says "React".
+- Sanity on sample data: `scikit-learn` count includes the posting that only says "sklearn"; `R` count excludes the posting that only says "React"; `Python` count is exactly 6 even though posting 01 says it many times.
 
 ### 6.7 Coverage target
-≥ 90% line coverage on `matcher`, `dictionary`, `analysis`; overall ≥ 85%. Reported in CI, not enforced as a gate in v1.
+≥ 90% line coverage on `matcher`, `dictionary`, `analysis`; overall ≥ 85%. Measured **locally** with `make coverage`; not run in CI and not a gate (see D12).
 
 ---
 
@@ -302,9 +327,10 @@ All tests use pytest; fixtures in `conftest.py` provide a small in-memory dictio
 make install          # pip install -e . + dev deps
 make format-check     # black --check src tests
 make lint             # flake8 src tests
-make test             # pytest -v --cov=job_skill_gap
+make test             # pytest -v (no coverage)
+make coverage         # optional, local only: pytest --cov report (needs pytest-cov)
 ```
-All four must pass before every commit (same as CI).
+`install`, `format-check`, `lint` and `test` must pass before every commit (same as CI). `make coverage` is for checking §6.7 by hand.
 
 ### 7.2 Manual smoke test (local)
 1. `make run` → terminal shows summary; `output/skill_gap.csv` and `output/top_missing_skills.png` exist.

@@ -1,0 +1,107 @@
+STUDENT_NAME: Xuechun Zhao
+NETID: xz371
+OPTION: 3
+ROLE: tester
+AGENT_TOOL: Claude (Cowork)
+REPOSITORY_B_URL: https://github.com/xuechunz38-stack/job-skill-gap
+===== TRANSCRIPT START =====
+[STUDENT]
+You are the TESTER. Please reply in English. Independently review this repository against docs/plan.md. Run the test suite, black and flake8; check typical and edge-case behaviour by running the CLI yourself; follow the README setup instructions literally and report anything that doesn't work; list incomplete or incorrect work and recommend concrete fixes, ranked by importance. Do not fix things unless I ask.
+
+[AGENT]
+Now following the README Quick Start literally in a clean copy (Python 3.11).Chart looks correct. Now edge cases and error paths.I finished the review, but I couldn't run pytest, black, flake8 or Docker. Neither my sandbox nor your computer's shell can reach PyPI, and there's no Docker daemon. So the README setup failed for me at `make install`, which was my environment's fault, not the repo's.
+The evidence I do have on those points:
+
+* The builder transcript and your `docs/smoke/smoke_local.png` both show 101 tests passing, black and flake8 clean, and `make run` working.
+* `smoke_docker.png` shows the Docker run working.
+* I checked every source and test file myself: no line over 88 characters, no trailing whitespace, no unused imports. That isn't a real flake8 run, though.
+* I couldn't reach GitHub, so I can't confirm CI is green or that the badge shows "passing". Your local `main` is the same commit as `origin/main`.
+
+I ran the CLI with Python 3.13 and matplotlib on a copy of the repo. On the sample data the output matches the README exactly. Typical runs and the main edge cases from §7.2 all behave as the plan says: empty folder and only-`.md` folder (exit 2, no output folder created), no missing skills (exit 0, placeholder chart), a posting with no skills (denominator goes up by one), bad path, alias collisions (exit 1), and bad `--top` values. The chart looks correct.
+One thing to know: my first `git status` left an empty `.git/index.lock` in your repo, which would have blocked your git commands. You approved the delete, and I removed only that file. Nothing else in your folder was changed.
+Findings, most important first (nothing fixed)
+
+1. Some bad skills CSVs crash with a traceback. A field longer than 131,072 characters raises an error that `load_skills` doesn't catch, so the user sees a raw traceback instead of the one-line error the plan and README promise. Fix: catch `csv.Error` in `load_skills` and re-raise it as `SkillDictionaryError` with the line number; add a test.
+2. A missing closing quote corrupts the dictionary silently. A row like `"Python,p,` is read as a skill literally named `Python,p,`, Python then gets reported as missing, and the run exits 0. Fix: use `csv.DictReader(..., strict=True)`, catch the error as in item 1, and reject skill names that contain commas or newlines.
+3. `C++17` and `C++20` don't match `C++`. The guard after an alias rejects a following digit even when the alias ends in `+` or `#`, and real postings often say "C++17". Fix: only add the end guard when the alias ends in a letter, digit or underscore (same idea for the start guard); add tests for `C++17` and `C#10`.
+4. Some sample aliases are too broad and count the wrong postings.
+   * "containers" counts as Docker, "experimentation" as A/B testing, and "forecasting" as time series (posting 04 only says "forecasting models").
+   * Some aliases are a different product: "LlamaIndex" counts as LangChain, "BigQuery" as GCP, "GitHub" as Git, "spreadsheets" as Excel.
+   * "BS/MS in … statistics" counts as the statistics skill.
+   * "R&D" and "R-squared" match R.
+Fix: trim these aliases from `skills.csv` and list the remaining false positives in the README's Known limitations.
+5. The plan was never updated after the coverage change. You asked for this change, but `plan.md` still says "plan only — no implementation yet", and D12, D13, §6.7 and §7.1 still say `make test` uses `--cov` and that CI reports coverage. CI no longer reports it, and the ≥90% target was never measured. Fix: update the plan to Rev 3, and add a separate CI step that runs `make coverage` without failing the build.
+6. Definition-of-done items are missing:
+   * There's no `v0.1.0` tag (§8 step 10).
+   * The smoke-test screenshots in `docs/smoke/` aren't mentioned in the README, which §9 asks for.
+7. Weak or missing tests:
+   * The repeated-"Python" check (`posting_count <= 8`) would pass even if the bug existed; it should assert `== 6`.
+   * No CLI test for `--postings` pointing to a file.
+   * No test of the installed `job-skill-gap` command.
+   * No tests for items 1–3.
+8. A symlinked `.txt` is counted as a second posting. The same posting adds to every skill's count twice. Fix: skip symlinks, or de-duplicate by `resolve()`.
+9. An empty dictionary (header only) exits 0 with misleading warnings. It says "No missing skills found" and lists every posting as having no skills. The plan allows exit 0 here, but a run that matched nothing should either exit 1 or not print the "no missing skills" warning.
+10. Small rough edges:
+   * Passing a folder to `--skills` says "Skills file not found" when it should say "not a file".
+   * Unknown resume terms are de-duplicated case-sensitively, so you get "Wind API, wind api".
+   * The heading always says "Top 5 gaps:" even when fewer are listed.
+   * `make clean` fails if `output/` doesn't exist.
+   * Old outputs stay in the output folder after a failed run.
+   * `/tmp/mpl` in the Dockerfile is owned by root, so the optional `user:` line in compose makes matplotlib print a warning.
+   * Letters with accents count as a word boundary, so "Pythonés" matches Python.
+   * The README's Quick Start assumes a `python3.11` command exists; it should say any Python 3.11 or newer works.
+
+If you allow PyPI access in this session's network settings, I'll re-run `make all`, `make coverage` and the Docker smoke test. Or you can paste their output here and I'll check it against the plan.
+
+[STUDENT]
+Thanks — great review. Please fix these now, then run what you can and tell me exactly which commands I should run locally to verify:
+
+- #1 and #2: catch csv.Error, use strict=True, reject skill names containing commas/newlines; add tests.
+- #3: make the boundary guards depend on the alias's first/last character; add tests for C++17 and C#10.
+- #4: remove the over-broad aliases you listed from data/sample/skills.csv and list remaining false positives (e.g. R&D, R-squared) under Known limitations in the README.
+- #5: update docs/plan.md to Rev 3 so it matches the implementation (make test without --cov, separate make coverage). I'm rejecting the CI coverage step on purpose: I already decided to keep coverage out of CI because it was never verified, and an optional step adds noise without changing what we check.
+- #7: strengthen the repeated-Python assertion to == 6 and add the missing CLI tests.
+
+Defer #6 (I'll tag v0.1.0 myself), #8, #9 and #10 — list them under Known limitations / Future work in the README instead of fixing them.
+
+[AGENT]
+Now the matcher guards.Now the sample dictionary.Summary is unchanged; the top-10 chart changes (GCP drops out, recommender systems comes in), so I'll regenerate the README chart. Now the tests.I can't install pytest here, so I'll write a small throwaway pytest-compatible runner in my scratchpad (not the repo) to exercise the whole suite under Python 3.13.The line counter isn't advanced when the CSV parser fails mid-line, so I'll phrase it as "after line N" (the last line read cleanly).All 125 pass with my stand-in runner (it also gives 101/101 on the original code, so it's a reasonable proxy). Now line length and black-style checks by hand, since black/flake8 aren't installable.Black would explode that list. I'll fix it, then run a heuristic check for spots where black would join lines I split (or vice versa), since the `_parse_rows` extraction de-indented a block.Code and tests are done. Now the README.Now Known limitations and Future work.Now the plan, Rev 3.Ready to write back. First I'll confirm none of these files changed on your computer since I copied them.I've made all the fixes and saved them to your job-skill-gap folder: 9 files changed, nothing committed to git. I still couldn't run the real pytest, black or flake8, because neither my sandbox nor your computer's shell can reach PyPI.
+What I could run: a small pytest stand-in I wrote in my scratch space (not in your repo). On the original code it gives 101 passed, the same as your real run, so it's a reasonable check. On the new code it gives 125 passed, 0 failed, 0 skipped. I also checked by hand that no line is over 88 characters, there's no trailing whitespace, and nothing raises warnings. Black formatting is the riskiest part, since I could only follow its style by hand.
+What changed:
+
+* #1/#2: the skills CSV is now read strictly. Any CSV parsing error becomes a one-line error ending in exit 1, e.g. `malformed CSV after line 1 (unexpected end of data)`. A skill name with a comma or line break is rejected; a quoted alias with a comma is still allowed.
+* #3: a boundary guard is now only added on a side where the alias starts or ends with a letter, digit or `_`. "C++17" now counts as `C++` and "C#10" as `C#`, while "C99" still doesn't match `C`.
+   * Changed test: one existing test's expectation is different now. With a `.NET` skill, "ASP.NET" now counts as `.NET`. That follows from the rule you asked for, and it's listed in the README's Known limitations and the plan.
+   * A skill with no aliases now never matches; before, it would have matched every posting.
+* #4: I removed the seven broad aliases from `skills.csv`. The terminal summary on the sample data is unchanged. The top-10 chart changes (GCP drops out, recommender systems comes in), so I regenerated `docs/sample_top_missing_skills.png`.
+* #5: `docs/plan.md` is now Rev 3, with a revision history. It covers `make test` without `--cov`, a separate local-only `make coverage`, coverage kept out of CI on purpose (with your reason), and the new CSV and matching rules.
+* #7:
+   * The repeated-"Python" check now asserts `== 6`.
+   * New CLI tests: `--postings` pointing at a file, three kinds of malformed CSV, and the installed `job-skill-gap` command (a successful run and the empty-folder error). The installed-command tests skip if it isn't on your PATH.
+   * New matcher and dictionary tests for the cases above.
+* Deferred: #8, #9 and #10 are now in the README's Known limitations and Future work. I didn't add #6 to the README, since you're handling the tag yourself.
+
+To verify locally (in your `(jsg)` environment from the screenshots, or a fresh `python3.11 -m venv .venv && source .venv/bin/activate`):
+
+```bash
+cd ~/Claude/ids706-week4/job-skill-gap
+make install                 # reinstall so the job-skill-gap command is current
+make format-check            # if it fails: run `make format`, check `git diff`, re-run
+make lint
+make test                    # expect: 125 passed, 0 skipped
+make coverage                # optional; check §6.7 targets by hand
+make run                     # summary should match the README; chart = 10 bars ending in "recommender systems"
+
+# Edge checks
+mkdir -p /tmp/empty && job-skill-gap --postings /tmp/empty --skills data/sample/skills.csv \
+  --resume data/sample/resume_skills.txt --out-dir /tmp/o; echo "exit=$?"      # exit=2, /tmp/o not created
+printf 'skill,category,aliases\n"Python,p,\n' > /tmp/bad.csv && job-skill-gap \
+  --postings data/sample/postings --skills /tmp/bad.csv \
+  --resume data/sample/resume_skills.txt --out-dir /tmp/o2; echo "exit=$?"     # one "error: … malformed CSV" line, exit=1
+
+# Docker
+make docker-build && docker compose run --rm job-skill-gap
+```
+
+If `make test` reports skips, the `job-skill-gap` command isn't on your PATH, so re-run `make install` inside the active environment. Once these all pass, review `git diff` and commit.
+===== TRANSCRIPT END =====

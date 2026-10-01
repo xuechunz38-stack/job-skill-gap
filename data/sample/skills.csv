@@ -14,29 +14,29 @@ TensorFlow,data & ml,Keras
 machine learning,data & ml,ML
 deep learning,data & ml,
 statistics,data & ml,statistical analysis|statistical modeling|statistical modelling
-A/B testing,data & ml,A/B test|A/B tests|AB testing|online experiments|experimentation
+A/B testing,data & ml,A/B test|A/B tests|AB testing|online experiments
 causal inference,data & ml,
 recommender systems,data & ml,recommendation systems|recommendation system|recsys
-time series,data & ml,time-series|forecasting
+time series,data & ml,time-series
 LLM,ai & llm,LLMs|large language model|large language models
 prompt engineering,ai & llm,prompting
 RAG,ai & llm,retrieval-augmented generation|retrieval augmented generation
-LangChain,ai & llm,LlamaIndex
+LangChain,ai & llm,
 AI agents,ai & llm,AI agent|agentic|agent workflows
 vector databases,ai & llm,vector database|vector DB|Pinecone|FAISS
 model evaluation,ai & llm,evals|LLM evaluation|eval sets
 Tableau,analytics & bi,
 Power BI,analytics & bi,PowerBI
-Excel,analytics & bi,Microsoft Excel|spreadsheets
+Excel,analytics & bi,Microsoft Excel
 dbt,analytics & bi,
 data visualization,analytics & bi,data viz|visualization
-Git,engineering,GitHub
-Docker,engineering,containers
+Git,engineering,
+Docker,engineering,
 Spark,engineering,Apache Spark
 PySpark,engineering,
 Airflow,engineering,Apache Airflow
 AWS,engineering,Amazon Web Services|SageMaker
-GCP,engineering,Google Cloud|BigQuery
+GCP,engineering,Google Cloud
 React,engineering,React.js|ReactJS
 PRD writing,product,PRD|PRDs|product requirements|requirements documents
 user research,product,user interviews|customer interviews|user discovery|usability testing

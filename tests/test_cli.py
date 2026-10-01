@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import shutil
 import subprocess
 import sys
 
@@ -80,9 +81,10 @@ def test_sample_alias_and_boundary_sanity(sample_dir, tmp_path, capsys):
     assert rows["R"]["posting_count"] == "2"
     assert rows["React"]["posting_count"] == "1"
 
-    # 01_* says Python many times but contributes once.
+    # 01_* says Python many times but contributes once: 6 of the 8 postings
+    # mention Python (01, 02, 04, 05, 06, 08).
     assert p01.count("Python") > 3
-    assert int(rows["Python"]["posting_count"]) <= 8
+    assert rows["Python"]["posting_count"] == "6"
 
 
 def test_sample_run_is_deterministic(sample_dir, tmp_path, capsys):
@@ -229,3 +231,66 @@ def test_out_dir_is_a_file_exits_2(sample_dir, tmp_path, write_file, capsys):
     blocker = write_file("out", "I am a file, not a folder")
     assert main(_sample_args(sample_dir, blocker, "--quiet")) == 2
     assert "error: cannot write outputs to" in capsys.readouterr().err
+
+
+def test_postings_path_is_a_file_exits_2(sample_dir, tmp_path, capsys):
+    a_file = sample_dir / "postings" / "01_ds_intern_fintech.txt"
+    args = _sample_args(sample_dir, tmp_path / "out")
+    args[args.index("--postings") + 1] = str(a_file)
+    assert main(args) == 2
+    err = capsys.readouterr().err
+    assert err.startswith("error: Postings path is not a directory")
+    _assert_no_outputs(tmp_path / "out")
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        'skill,category,aliases\n"Python,p,\n',  # unterminated quote
+        "skill,category,aliases\nPython,p," + "a" * 200_000 + "\n",  # huge field
+        'skill,category,aliases\n"Python, SQL",p,\n',  # comma in skill name
+    ],
+    ids=["unterminated-quote", "oversized-field", "comma-in-name"],
+)
+def test_malformed_skills_csv_exits_1_without_traceback(
+    write_file, sample_dir, tmp_path, capsys, content
+):
+    skills = write_file("bad.csv", content)
+    resume = write_file("resume.txt", "Python\n")
+    out = tmp_path / "out"
+    assert main(_args(sample_dir / "postings", skills, resume, out)) == 1
+    err = capsys.readouterr().err
+    assert err.startswith("error: ")
+    assert err.count("\n") == 1  # one line
+    assert "Traceback" not in err
+    _assert_no_outputs(out)
+
+
+def test_installed_console_script(sample_dir, tmp_path):
+    exe = shutil.which("job-skill-gap")
+    if exe is None:
+        pytest.skip("job-skill-gap is not on PATH; run `make install` first")
+    proc = subprocess.run(
+        [exe, *_sample_args(sample_dir, tmp_path / "out")],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "8 postings analyzed" in proc.stdout
+    assert (tmp_path / "out" / CSV_NAME).is_file()
+
+
+def test_installed_console_script_error_exit_code(sample_dir, tmp_path):
+    exe = shutil.which("job-skill-gap")
+    if exe is None:
+        pytest.skip("job-skill-gap is not on PATH; run `make install` first")
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    out = tmp_path / "out"
+    args = _sample_args(sample_dir, out)
+    args[args.index("--postings") + 1] = str(empty)
+    proc = subprocess.run([exe, *args], capture_output=True, text=True, check=False)
+    assert proc.returncode == 2
+    assert proc.stderr == f"error: No .txt postings found in {empty}\n"
+    assert not out.exists()
